@@ -86,4 +86,18 @@ public class PatientData {
     public void setCity(String city) {
         this.city = city;
     }
+
+    @Override
+    public String toString() {
+        return "PatientData{" +
+                "id='" + id + '\'' +
+                ", fullName='" + fullName + '\'' +
+                ", gender=" + gender +
+                ", email='" + email + '\'' +
+                ", phone='" + phone + '\'' +
+                ", line='" + line + '\'' +
+                ", city='" + city + '\'' +
+                ", postalCode='" + postalCode + '\'' +
+                '}';
+    }
 }

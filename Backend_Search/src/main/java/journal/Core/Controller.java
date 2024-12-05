@@ -7,7 +7,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import journal.Core.Model.PatientData;
+import journal.Core.Model.PractitionerData;
 import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.Practitioner;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +31,22 @@ public class Controller {
                 patientsData.add(hapiService.getPatientData(patient));
             }
             return Response.ok(patientsData).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+    }
+
+    @GET
+    @Path("practitioners")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPractitioners() {
+        try {
+            List<Practitioner> practitioners = hapiService.getPractitionersByIdentifierSystem();
+            List<PractitionerData> practitionersData = new ArrayList<>();
+            for (Practitioner practitioner : practitioners) {
+                practitionersData.add(hapiService.getPractitionerData(practitioner));
+            }
+            return Response.ok(practitionersData).build();
         } catch (Exception e) {
             return Response.status(Response.Status.BAD_REQUEST).build();
         }

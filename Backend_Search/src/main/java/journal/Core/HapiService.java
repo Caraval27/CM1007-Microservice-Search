@@ -4,6 +4,7 @@ import ca.uhn.fhir.context.FhirContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import journal.Core.Model.PatientData;
+import journal.Core.Model.PractitionerData;
 import org.hl7.fhir.r4.model.*;
 
 import java.util.ArrayList;
@@ -103,5 +104,58 @@ public class HapiService {
         }
 
         return new PatientData(ssn, fullName, gender, email, phone, line, city, postalCode);
+    }
+
+    public List<Practitioner> getPractitionersByIdentifierSystem() {
+        Bundle bundle = client.search()
+                .forResource(Practitioner.class)
+                .where(Practitioner.IDENTIFIER.hasSystemWithAnyCode(practitionerSystem))
+                .returnBundle(Bundle.class)
+                .execute();
+
+        List<Practitioner> practitioners = new ArrayList<>(bundle.getEntry().stream()
+                .map(p -> (Practitioner) p.getResource())
+                .toList());
+
+        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+            bundle = client.loadPage().next(bundle).execute();
+            practitioners.addAll(bundle.getEntry().stream()
+                    .map(p -> (Practitioner) p.getResource())
+                    .toList());
+        }
+        return practitioners;
+    }
+
+    public PractitionerData getPractitionerData(Practitioner practitioner) {
+        if (practitioner == null) {
+            return null;
+        }
+
+        String hsaId = "";
+        for (Identifier id : practitioner.getIdentifier()) {
+            if (id.getSystem().equals(practitionerSystem)) {
+                hsaId = id.getValue();
+                break;
+            }
+        }
+
+        String phone = "";
+        String email = "";
+        if (practitioner.hasTelecom()) {
+            for (ContactPoint contactPoint : practitioner.getTelecom()) {
+                if (phone.isEmpty() && contactPoint.hasSystem() &&
+                        contactPoint.getSystem() == ContactPoint.ContactPointSystem.PHONE) {
+                    phone = contactPoint.getValue();
+                }
+                if (email.isEmpty() && contactPoint.hasSystem() &&
+                        contactPoint.getSystem() == ContactPoint.ContactPointSystem.EMAIL) {
+                    email = contactPoint.getValue();
+                }
+            }
+        }
+
+        String fullName = practitioner.getName().get(0).getNameAsSingleString();
+
+        return new PractitionerData(hsaId, fullName, email, phone);
     }
 }
