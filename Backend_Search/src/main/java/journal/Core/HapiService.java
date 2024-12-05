@@ -28,6 +28,7 @@ public class HapiService {
         Bundle bundle = client.search()
                 .forResource(Patient.class)
                 .where(Patient.IDENTIFIER.hasSystemWithAnyCode(patientSystem))
+                .sort().ascending(Patient.NAME)
                 .returnBundle(Bundle.class)
                 .execute();
 
@@ -106,10 +107,12 @@ public class HapiService {
         return new PatientData(ssn, fullName, gender, email, phone, line, city, postalCode);
     }
 
-    public List<Practitioner> getPractitionersByIdentifierSystem() {
+    public List<Practitioner> getPractitionersByIdentifierSystemAndQuery(String name) {
         Bundle bundle = client.search()
                 .forResource(Practitioner.class)
                 .where(Practitioner.IDENTIFIER.hasSystemWithAnyCode(practitionerSystem))
+                .where(Practitioner.NAME.contains().value(name))
+                .sort().ascending(Practitioner.NAME)
                 .returnBundle(Bundle.class)
                 .execute();
 

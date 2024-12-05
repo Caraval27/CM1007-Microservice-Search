@@ -4,6 +4,7 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import journal.Core.Model.PatientData;
@@ -39,9 +40,9 @@ public class Controller {
     @GET
     @Path("practitioners")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getPractitioners() {
+    public Response getPractitioners(@QueryParam("query") String query) {
         try {
-            List<Practitioner> practitioners = hapiService.getPractitionersByIdentifierSystem();
+            List<Practitioner> practitioners = hapiService.getPractitionersByIdentifierSystemAndQuery(query);
             List<PractitionerData> practitionersData = new ArrayList<>();
             for (Practitioner practitioner : practitioners) {
                 practitionersData.add(hapiService.getPractitionerData(practitioner));
