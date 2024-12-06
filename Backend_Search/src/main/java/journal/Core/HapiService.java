@@ -45,6 +45,46 @@ public class HapiService {
         return patients;
     }
 
+    public List<Patient> getPractitionerPatientsByIdentifier(String identifierValue) {
+        Practitioner practitioner = getPractitionerByIdentifier(identifierValue);
+        if (practitioner == null) {
+            return null;
+        }
+
+        Bundle bundle = client.search()
+                .forResource(Patient.class)
+                .where(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart()))
+                .sort().ascending(Patient.NAME)
+                .returnBundle(Bundle.class)
+                .execute();
+
+        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
+                .map(p -> (Patient) p.getResource())
+                .toList());
+
+        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+            bundle = client.loadPage().next(bundle).execute();
+            patients.addAll(bundle.getEntry().stream()
+                    .map(p -> (Patient) p.getResource())
+                    .toList());
+        }
+        return patients;
+    }
+
+    public Practitioner getPractitionerByIdentifier(String identifierValue) {
+        Bundle bundle = client
+                .search()
+                .forResource(Practitioner.class)
+                .where(Practitioner.IDENTIFIER.exactly().systemAndIdentifier(practitionerSystem, identifierValue))
+                .returnBundle(Bundle.class)
+                .execute();
+        List<Bundle.BundleEntryComponent> entries = bundle.getEntry();
+        if (entries.isEmpty()) {
+            return null;
+        }
+        return (Practitioner) entries.get(0).getResource();
+    }
+
     public PatientData getPatientData(Patient patient) {
         if (patient == null) {
             return null;

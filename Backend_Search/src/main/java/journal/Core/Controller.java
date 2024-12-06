@@ -38,6 +38,22 @@ public class Controller {
     }
 
     @GET
+    @Path("practitioner_patients")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPractitionerPatients(@QueryParam("id") String id) {
+        try {
+            List<Patient> patients = hapiService.getPractitionerPatientsByIdentifier(id);
+            List<PatientData> patientsData = new ArrayList<>();
+            for (Patient patient : patients) {
+                patientsData.add(hapiService.getPatientData(patient));
+            }
+            return Response.ok(patientsData).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+    }
+
+    @GET
     @Path("practitioners")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getPractitioners(@QueryParam("query") String query) {
