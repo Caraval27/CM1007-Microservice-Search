@@ -22,11 +22,11 @@ public class Controller {
     HapiService hapiService;
 
     @GET
-    @Path("patients")
+    @Path("patients-by-name")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getPatients() {
+    public Response getPatientsByName(@QueryParam("name") String name) {
         try {
-            List<Patient> patients = hapiService.getPatientsByIdentifierSystem();
+            List<Patient> patients = hapiService.getPatientsByName(name);
             List<PatientData> patientsData = new ArrayList<>();
             for (Patient patient : patients) {
                 patientsData.add(hapiService.getPatientData(patient));
@@ -38,11 +38,11 @@ public class Controller {
     }
 
     @GET
-    @Path("practitioner_patients")
+    @Path("practitioner-patients-by-name")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getPractitionerPatients(@QueryParam("id") String id) {
+    public Response getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
         try {
-            List<Patient> patients = hapiService.getPractitionerPatientsByIdentifier(id);
+            List<Patient> patients = hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner);
             List<PatientData> patientsData = new ArrayList<>();
             for (Patient patient : patients) {
                 patientsData.add(hapiService.getPatientData(patient));
@@ -54,16 +54,49 @@ public class Controller {
     }
 
     @GET
-    @Path("practitioners")
+    @Path("practitioners-by-name")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getPractitioners(@QueryParam("query") String query) {
+    public Response getPractitionersByName(@QueryParam("name") String name) {
         try {
-            List<Practitioner> practitioners = hapiService.getPractitionersByIdentifierSystemAndQuery(query);
+            List<Practitioner> practitioners = hapiService.getPractitionersByName(name);
             List<PractitionerData> practitionersData = new ArrayList<>();
             for (Practitioner practitioner : practitioners) {
                 practitionersData.add(hapiService.getPractitionerData(practitioner));
             }
             return Response.ok(practitionersData).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+    }
+
+    @GET
+    @Path("patients-by-condition")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPatientsByCondition(@QueryParam("condition") String condition) {
+        System.out.println("Entered");
+        try {
+            List<Patient> patients = hapiService.getPatientsByConditionCode(condition);
+            List<PatientData> patientsData = new ArrayList<>();
+            for (Patient patient : patients) {
+                patientsData.add(hapiService.getPatientData(patient));
+            }
+            return Response.ok(patientsData).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+    }
+
+    @GET
+    @Path("practitioner-patients-by-condition")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPractitionerPatientsByCondition(@QueryParam("condition") String condition, @QueryParam("practitioner") String practitioner) {
+        try {
+            List<Patient> patients = hapiService.getPatientsByConditionCodeAndPractitionerIdentifier(condition, practitioner);
+            List<PatientData> patientsData = new ArrayList<>();
+            for (Patient patient : patients) {
+                patientsData.add(hapiService.getPatientData(patient));
+            }
+            return Response.ok(patientsData).build();
         } catch (Exception e) {
             return Response.status(Response.Status.BAD_REQUEST).build();
         }

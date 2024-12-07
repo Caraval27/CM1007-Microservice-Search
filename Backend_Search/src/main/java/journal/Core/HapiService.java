@@ -9,25 +9,35 @@ import org.hl7.fhir.r4.model.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @ApplicationScoped
 public class HapiService {
     private FhirContext context;
     private IGenericClient client;
-    private static final String patientSystem = "http://electronichealth.se/identifier/personnummer";
-    private static final String practitionerSystem = "http://terminology.hl7.org/CodeSystem/v2-0203";
-    private static final String practitionerRoleSystem = "http://terminology.hl7.org/CodeSystem/practitioner-role";
-    private static final String hapiServerURL = "https://hapi-fhir.app.cloud.cbh.kth.se/fhir";
+    private static final String PATIENT_SYSTEM = "http://electronichealth.se/identifier/personnummer";
+    private static final String PRACTITIONER_SYSTEM = "http://terminology.hl7.org/CodeSystem/v2-0203";
+    private static final String PRACTITIONER_ROLE_SYSTEM = "http://terminology.hl7.org/CodeSystem/practitioner-role";
+    private static final String HAPI_SERVER_URL = "https://hapi-fhir.app.cloud.cbh.kth.se/fhir";
+    private static final String CONDITION_SYSTEM = "http://snomed.info/sct";
 
     public HapiService() {
         this.context = FhirContext.forR4();
-        this.client = context.newRestfulGenericClient(hapiServerURL);
+        this.client = context.newRestfulGenericClient(HAPI_SERVER_URL);
     }
 
-    public List<Patient> getPatientsByIdentifierSystem() {
+    public Patient getPatientById(String patientId) {
+        return client.read()
+                .resource(Patient.class)
+                .withId(patientId)
+                .execute();
+    }
+
+    public List<Patient> getPatientsByName(String name) {
         Bundle bundle = client.search()
                 .forResource(Patient.class)
-                .where(Patient.IDENTIFIER.hasSystemWithAnyCode(patientSystem))
+                .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                .where(Patient.NAME.contains().value(name))
                 .sort().ascending(Patient.NAME)
                 .returnBundle(Bundle.class)
                 .execute();
@@ -45,14 +55,13 @@ public class HapiService {
         return patients;
     }
 
-    public List<Patient> getPractitionerPatientsByIdentifier(String identifierValue) {
+    public List<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
         Practitioner practitioner = getPractitionerByIdentifier(identifierValue);
-        if (practitioner == null) {
-            return null;
-        }
 
         Bundle bundle = client.search()
                 .forResource(Patient.class)
+                .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                .where(Patient.NAME.contains().value(name))
                 .where(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart()))
                 .sort().ascending(Patient.NAME)
                 .returnBundle(Bundle.class)
@@ -75,7 +84,7 @@ public class HapiService {
         Bundle bundle = client
                 .search()
                 .forResource(Practitioner.class)
-                .where(Practitioner.IDENTIFIER.exactly().systemAndIdentifier(practitionerSystem, identifierValue))
+                .where(Practitioner.IDENTIFIER.exactly().systemAndIdentifier(PRACTITIONER_SYSTEM, identifierValue))
                 .returnBundle(Bundle.class)
                 .execute();
         List<Bundle.BundleEntryComponent> entries = bundle.getEntry();
@@ -92,7 +101,7 @@ public class HapiService {
         String ssn = "";
         if (patient.hasIdentifier()) {
             for (Identifier id : patient.getIdentifier()) {
-                if (id.hasSystem() && id.getSystem().equals(patientSystem)) {
+                if (id.hasSystem() && id.getSystem().equals(PATIENT_SYSTEM)) {
                     ssn = id.getValue();
                     break;
                 }
@@ -147,10 +156,10 @@ public class HapiService {
         return new PatientData(ssn, fullName, gender, email, phone, line, city, postalCode);
     }
 
-    public List<Practitioner> getPractitionersByIdentifierSystemAndQuery(String name) {
+    public List<Practitioner> getPractitionersByName(String name) {
         Bundle bundle = client.search()
                 .forResource(Practitioner.class)
-                .where(Practitioner.IDENTIFIER.hasSystemWithAnyCode(practitionerSystem))
+                .where(Practitioner.IDENTIFIER.hasSystemWithAnyCode(PRACTITIONER_SYSTEM))
                 .where(Practitioner.NAME.contains().value(name))
                 .sort().ascending(Practitioner.NAME)
                 .returnBundle(Bundle.class)
@@ -169,6 +178,58 @@ public class HapiService {
         return practitioners;
     }
 
+    public List<Patient> getPatientsByConditionCode(String code) {
+        Bundle bundle = client.search()
+                .forResource(Condition.class)
+                .where(Condition.CODE.exactly().systemAndCode(CONDITION_SYSTEM, code))
+                .include(Condition.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class)
+                .execute();
+
+        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
+                .filter(entry -> entry.getResource() instanceof Patient)
+                .map(p -> (Patient) p.getResource())
+                .toList());
+
+        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+            bundle = client.loadPage().next(bundle).execute();
+            patients.addAll(bundle.getEntry().stream()
+                    .filter(entry -> entry.getResource() instanceof Patient)
+                    .map(p -> (Patient) p.getResource())
+                    .toList());
+        }
+
+        return patients;
+    }
+
+    public List<Patient> getPatientsByConditionCodeAndPractitionerIdentifier(String code, String identifierValue) {
+        Practitioner practitioner = getPractitionerByIdentifier(identifierValue);
+
+        Bundle bundle = client.search()
+                .forResource(Condition.class)
+                .where(Condition.CODE.exactly().systemAndCode(CONDITION_SYSTEM, code))
+                .where(Condition.SUBJECT.hasChainedProperty(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart())))
+                .include(Condition.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class)
+                .execute();
+
+        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
+                .filter(entry -> entry.getResource() instanceof Patient)
+                .map(p -> (Patient) p.getResource())
+                .toList());
+
+        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+            bundle = client.loadPage().next(bundle).execute();
+            patients.addAll(bundle.getEntry().stream()
+                    .filter(entry -> entry.getResource() instanceof Patient)
+                    .map(p -> (Patient) p.getResource())
+                    .toList());
+        }
+
+        return patients;
+    }
+
+
     public PractitionerData getPractitionerData(Practitioner practitioner) {
         if (practitioner == null) {
             return null;
@@ -176,7 +237,7 @@ public class HapiService {
 
         String hsaId = "";
         for (Identifier id : practitioner.getIdentifier()) {
-            if (id.getSystem().equals(practitionerSystem)) {
+            if (id.getSystem().equals(PRACTITIONER_SYSTEM)) {
                 hsaId = id.getValue();
                 break;
             }
