@@ -73,7 +73,6 @@ public class Controller {
     @Path("patients-by-condition")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getPatientsByCondition(@QueryParam("condition") String condition) {
-        System.out.println("Entered");
         try {
             List<Patient> patients = hapiService.getPatientsByConditionCode(condition);
             List<PatientData> patientsData = new ArrayList<>();
