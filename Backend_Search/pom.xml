@@ -138,11 +138,6 @@
                         </goals>
                         <configuration>
                             <classifier>jar-with-dependencies</classifier>
-                            <archive>
-                                <manifest>
-                                    <mainClass>Main</mainClass>
-                                </manifest>
-                            </archive>
                         </configuration>
                     </execution>
                 </executions>
