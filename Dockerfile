@@ -6,7 +6,7 @@ RUN mvn clean package -DskipTests
 
 FROM openjdk:17-jdk-alpine
 WORKDIR /journal_app
-EXPOSE 8080
+EXPOSE 8083
 
 COPY --from=build /build_journal_app/target/*.jar /journal_app/
 
