@@ -8,6 +8,6 @@ FROM openjdk:17-jdk-alpine
 WORKDIR /journal_app
 EXPOSE 8083
 
-COPY --from=build /build_journal_app/target/quarkus-run.jar /journal_app/
+COPY --from=build /build_journal_app/target/quarkus-app/quarkus-run.jar /journal_app/
 
 CMD ["java", "-jar", "/journal_app/quarkus-run.jar"]
