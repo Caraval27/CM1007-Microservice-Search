@@ -33,6 +33,7 @@ public class Controller {
             }
             return Response.ok(patientsData).build();
         } catch (Exception e) {
+            e.printStackTrace();
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -49,6 +50,7 @@ public class Controller {
             }
             return Response.ok(patientsData).build();
         } catch (Exception e) {
+            e.printStackTrace();
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -65,6 +67,7 @@ public class Controller {
             }
             return Response.ok(practitionersData).build();
         } catch (Exception e) {
+            e.printStackTrace();
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -81,6 +84,7 @@ public class Controller {
             }
             return Response.ok(patientsData).build();
         } catch (Exception e) {
+            e.printStackTrace();
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -97,6 +101,7 @@ public class Controller {
             }
             return Response.ok(patientsData).build();
         } catch (Exception e) {
+            e.printStackTrace();
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
