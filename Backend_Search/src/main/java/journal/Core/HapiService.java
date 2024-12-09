@@ -1,6 +1,7 @@
 package journal.Core;
 
 import ca.uhn.fhir.context.FhirContext;
+import io.smallrye.mutiny.Multi;
 import jakarta.enterprise.context.ApplicationScoped;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import journal.Core.Model.PatientData;
@@ -26,15 +27,9 @@ public class HapiService {
         this.client = context.newRestfulGenericClient(HAPI_SERVER_URL);
     }
 
-    public Patient getPatientById(String patientId) {
-        return client.read()
-                .resource(Patient.class)
-                .withId(patientId)
-                .execute();
-    }
-
-    public List<Patient> getPatientsByName(String name) {
-        Bundle bundle = client.search()
+    public Multi<Patient> getPatientsByName(String name) {
+        return Multi.createFrom().emitter(emitter -> {
+            Bundle bundle = client.search()
                 .forResource(Patient.class)
                 .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
                 .where(Patient.NAME.contains().value(name))
@@ -42,17 +37,19 @@ public class HapiService {
                 .returnBundle(Bundle.class)
                 .execute();
 
-        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
-                .map(p -> (Patient) p.getResource())
-                .toList());
-
-        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
-            bundle = client.loadPage().next(bundle).execute();
-            patients.addAll(bundle.getEntry().stream()
+            bundle.getEntry().stream()
                     .map(p -> (Patient) p.getResource())
-                    .toList());
-        }
-        return patients;
+                    .forEach(emitter::emit);
+
+            while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+                bundle = client.loadPage().next(bundle).execute();
+                bundle.getEntry().stream()
+                        .map(p -> (Patient) p.getResource())
+                        .forEach(emitter::emit);
+            }
+
+            emitter.complete();
+        });
     }
 
     public List<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {

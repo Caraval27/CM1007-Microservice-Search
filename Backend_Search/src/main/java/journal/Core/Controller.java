@@ -1,5 +1,6 @@
 package journal.Core;
 
+import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -23,19 +24,12 @@ public class Controller {
 
     @GET
     @Path("patients-by-name")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getPatientsByName(@QueryParam("name") String name) {
-        try {
-            List<Patient> patients = hapiService.getPatientsByName(name);
-            List<PatientData> patientsData = new ArrayList<>();
-            for (Patient patient : patients) {
-                patientsData.add(hapiService.getPatientData(patient));
-            }
-            return Response.ok(patientsData).build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Response.status(Response.Status.BAD_REQUEST).build();
-        }
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<PatientData> getPatientsByName(@QueryParam("name") String name) {
+        return hapiService.getPatientsByName(name)
+                .onItem().transform(hapiService::getPatientData)
+                .onFailure()
+                .recoverWithItem(() -> new PatientData("Error occurred while fetching patients", "", null, "", "", "", "", ""));
     }
 
     @GET
