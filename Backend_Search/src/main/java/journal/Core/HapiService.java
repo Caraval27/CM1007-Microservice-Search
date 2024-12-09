@@ -2,6 +2,8 @@ package journal.Core;
 
 import ca.uhn.fhir.context.FhirContext;
 import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.subscription.MultiEmitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import journal.Core.Model.PatientData;
@@ -29,27 +31,35 @@ public class HapiService {
 
     public Multi<Patient> getPatientsByName(String name) {
         return Multi.createFrom().emitter(emitter -> {
-            Bundle bundle = client.search()
-                .forResource(Patient.class)
-                .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
-                .where(Patient.NAME.contains().value(name))
-                .sort().ascending(Patient.NAME)
-                .returnBundle(Bundle.class)
-                .execute();
-
-            bundle.getEntry().stream()
-                    .map(p -> (Patient) p.getResource())
-                    .forEach(emitter::emit);
-
-            while (bundle.getLink(Bundle.LINK_NEXT) != null) {
-                bundle = client.loadPage().next(bundle).execute();
-                bundle.getEntry().stream()
-                        .map(p -> (Patient) p.getResource())
-                        .forEach(emitter::emit);
-            }
-
-            emitter.complete();
+            fetchBundleNonBlocking(name, null, emitter);
         });
+    }
+
+    private void fetchBundleNonBlocking(String name, Bundle currentBundle, MultiEmitter<? super Patient> emitter) {
+        Uni.createFrom().item(() -> {
+            if (currentBundle == null) {
+                return client.search()
+                        .forResource(Patient.class)
+                        .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                        .where(Patient.NAME.contains().value(name))
+                        .sort().ascending(Patient.NAME)
+                        .returnBundle(Bundle.class)
+                        .execute();
+            } else if (currentBundle.getLink(Bundle.LINK_NEXT) != null) {
+                return client.loadPage().next(currentBundle).execute();
+            }
+            return null;
+        }).subscribe().with(bundle -> {
+            if (bundle != null) {
+                bundle.getEntry().stream()
+                        .map(entry -> (Patient) entry.getResource())
+                        .forEach(emitter::emit);
+
+                fetchBundleNonBlocking(name, bundle, emitter);
+            } else {
+                emitter.complete();
+            }
+        }, emitter::fail);
     }
 
     public List<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
