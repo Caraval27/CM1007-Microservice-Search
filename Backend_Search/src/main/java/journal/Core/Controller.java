@@ -29,8 +29,8 @@ public class Controller {
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<List<PatientData>> getPatientsByName(@QueryParam("name") String name) {
         return hapiService.getPatientsByName(name)
-                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList());
-                //.onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
+                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
     @Blocking
