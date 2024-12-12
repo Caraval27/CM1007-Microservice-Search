@@ -10,7 +10,6 @@ import journal.Core.Model.PatientData;
 import journal.Core.Model.PractitionerData;
 import org.hl7.fhir.r4.model.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
@@ -30,36 +29,65 @@ public class HapiService {
 
     public Multi<List<Patient>> getPatientsByName(String name) {
         return Multi.createFrom().emitter(emitter -> {
-                    Bundle bundle = client.search()
-                            .forResource(Patient.class)
-                            .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
-                            .where(Patient.NAME.contains().value(name))
-                            .sort().ascending(Patient.NAME)
-                            .returnBundle(Bundle.class)
-                            .execute();
+            Bundle bundle = client.search()
+                    .forResource(Patient.class)
+                    .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                    .where(Patient.NAME.contains().value(name))
+                    .sort().ascending(Patient.NAME)
+                    .returnBundle(Bundle.class)
+                    .execute();
 
-                    processPatientBundle(bundle, emitter);
-
-                    emitter.complete();
-                });
+            processPatientBundle(bundle, emitter);
+            emitter.complete();
+        });
     }
 
     public Multi<List<Patient>> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
         return Uni.createFrom().item(() -> getPractitionerByIdentifier(identifierValue))
-                .onItem().transformToMulti(practitioner -> Multi.createFrom().emitter(emitter -> {
-                    Bundle bundle = client.search()
-                            .forResource(Patient.class)
-                            .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
-                            .where(Patient.NAME.contains().value(name))
-                            .where(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart()))
-                            .sort().ascending(Patient.NAME)
-                            .returnBundle(Bundle.class)
-                            .execute();
+            .onItem().transformToMulti(practitioner -> Multi.createFrom().emitter(emitter -> {
+                Bundle bundle = client.search()
+                        .forResource(Patient.class)
+                        .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                        .where(Patient.NAME.contains().value(name))
+                        .where(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart()))
+                        .sort().ascending(Patient.NAME)
+                        .returnBundle(Bundle.class)
+                        .execute();
 
-                    processPatientBundle(bundle, emitter);
+                processPatientBundle(bundle, emitter);
 
-                    emitter.complete();
-                }));
+                emitter.complete();
+            }));
+    }
+
+    public Multi<List<Patient>> getPatientsByConditionCode(String code) {
+        return Multi.createFrom().emitter(emitter -> {
+            Bundle bundle = client.search()
+                    .forResource(Condition.class)
+                    .where(Condition.CODE.exactly().systemAndCode(CONDITION_SYSTEM, code))
+                    .include(Condition.INCLUDE_SUBJECT)
+                    .returnBundle(Bundle.class)
+                    .execute();
+
+            processPatientBundle(bundle, emitter);
+            emitter.complete();
+        });
+    }
+
+    public Multi<List<Patient>> getPatientsByConditionCodeAndPractitionerIdentifier(String code, String identifierValue) {
+        return Uni.createFrom().item(() -> getPractitionerByIdentifier(identifierValue))
+            .onItem().transformToMulti(practitioner -> Multi.createFrom().emitter(emitter -> {
+                Bundle bundle = client.search()
+                        .forResource(Condition.class)
+                        .where(Condition.CODE.exactly().systemAndCode(CONDITION_SYSTEM, code))
+                        .where(Condition.SUBJECT.hasChainedProperty(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart())))
+                        .include(Condition.INCLUDE_SUBJECT)
+                        .returnBundle(Bundle.class)
+                        .execute();
+
+                processPatientBundle(bundle, emitter);
+                emitter.complete();
+            }));
     }
 
     private void processPatientBundle(Bundle bundle, MultiEmitter<? super List<Patient>> emitter) {
@@ -71,13 +99,14 @@ public class HapiService {
         while (bundle.getLink(Bundle.LINK_NEXT) != null) {
             bundle = client.loadPage().next(bundle).execute();
             patients = bundle.getEntry().stream()
+                    .filter(entry -> entry.getResource() instanceof Patient)
                     .map(entry -> (Patient) entry.getResource())
                     .toList();
             emitter.emit(patients);
         }
     }
 
-    public Practitioner getPractitionerByIdentifier(String identifierValue) {
+    private Practitioner getPractitionerByIdentifier(String identifierValue) {
         Bundle bundle = client
                 .search()
                 .forResource(Practitioner.class)
@@ -89,6 +118,31 @@ public class HapiService {
             return null;
         }
         return (Practitioner) entries.get(0).getResource();
+    }
+
+    public Multi<List<Practitioner>>getPractitionersByName(String name) {
+        return Multi.createFrom().emitter(emitter -> {
+            Bundle bundle = client.search()
+                    .forResource(Practitioner.class)
+                    .where(Practitioner.IDENTIFIER.hasSystemWithAnyCode(PRACTITIONER_SYSTEM))
+                    .where(Practitioner.NAME.contains().value(name))
+                    .sort().ascending(Practitioner.NAME)
+                    .returnBundle(Bundle.class)
+                    .execute();
+
+            List<Practitioner> practitioners = bundle.getEntry().stream()
+                    .map(p -> (Practitioner) p.getResource())
+                    .toList();
+            emitter.emit(practitioners);
+
+            while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+                bundle = client.loadPage().next(bundle).execute();
+                practitioners = bundle.getEntry().stream()
+                        .map(p -> (Practitioner) p.getResource())
+                        .toList();
+                emitter.emit(practitioners);
+            }
+        });
     }
 
     public PatientData getPatientData(Patient patient) {
@@ -152,80 +206,6 @@ public class HapiService {
 
         return new PatientData(ssn, fullName, gender, email, phone, line, city, postalCode);
     }
-
-    public List<Practitioner> getPractitionersByName(String name) {
-        Bundle bundle = client.search()
-                .forResource(Practitioner.class)
-                .where(Practitioner.IDENTIFIER.hasSystemWithAnyCode(PRACTITIONER_SYSTEM))
-                .where(Practitioner.NAME.contains().value(name))
-                .sort().ascending(Practitioner.NAME)
-                .returnBundle(Bundle.class)
-                .execute();
-
-        List<Practitioner> practitioners = new ArrayList<>(bundle.getEntry().stream()
-                .map(p -> (Practitioner) p.getResource())
-                .toList());
-
-        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
-            bundle = client.loadPage().next(bundle).execute();
-            practitioners.addAll(bundle.getEntry().stream()
-                    .map(p -> (Practitioner) p.getResource())
-                    .toList());
-        }
-        return practitioners;
-    }
-
-    public List<Patient> getPatientsByConditionCode(String code) {
-        Bundle bundle = client.search()
-                .forResource(Condition.class)
-                .where(Condition.CODE.exactly().systemAndCode(CONDITION_SYSTEM, code))
-                .include(Condition.INCLUDE_SUBJECT)
-                .returnBundle(Bundle.class)
-                .execute();
-
-        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
-                .filter(entry -> entry.getResource() instanceof Patient)
-                .map(p -> (Patient) p.getResource())
-                .toList());
-
-        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
-            bundle = client.loadPage().next(bundle).execute();
-            patients.addAll(bundle.getEntry().stream()
-                    .filter(entry -> entry.getResource() instanceof Patient)
-                    .map(p -> (Patient) p.getResource())
-                    .toList());
-        }
-
-        return patients;
-    }
-
-    public List<Patient> getPatientsByConditionCodeAndPractitionerIdentifier(String code, String identifierValue) {
-        Practitioner practitioner = getPractitionerByIdentifier(identifierValue);
-
-        Bundle bundle = client.search()
-                .forResource(Condition.class)
-                .where(Condition.CODE.exactly().systemAndCode(CONDITION_SYSTEM, code))
-                .where(Condition.SUBJECT.hasChainedProperty(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart())))
-                .include(Condition.INCLUDE_SUBJECT)
-                .returnBundle(Bundle.class)
-                .execute();
-
-        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
-                .filter(entry -> entry.getResource() instanceof Patient)
-                .map(p -> (Patient) p.getResource())
-                .toList());
-
-        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
-            bundle = client.loadPage().next(bundle).execute();
-            patients.addAll(bundle.getEntry().stream()
-                    .filter(entry -> entry.getResource() instanceof Patient)
-                    .map(p -> (Patient) p.getResource())
-                    .toList());
-        }
-
-        return patients;
-    }
-
 
     public PractitionerData getPractitionerData(Practitioner practitioner) {
         if (practitioner == null) {
