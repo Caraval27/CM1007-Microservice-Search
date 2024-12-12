@@ -3,6 +3,7 @@ package journal.Core;
 import ca.uhn.fhir.context.FhirContext;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.smallrye.mutiny.subscription.MultiEmitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -49,7 +50,8 @@ public class HapiService {
                 return client.loadPage().next(currentBundle).execute();
             }
             return null;
-        }).subscribe().with(bundle -> {
+        })
+            .subscribe().with(bundle -> {
             if (bundle != null) {
                 bundle.getEntry().stream()
                         .map(entry -> (Patient) entry.getResource())
@@ -62,29 +64,37 @@ public class HapiService {
         }, emitter::fail);
     }
 
-    public List<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
-        Practitioner practitioner = getPractitionerByIdentifier(identifierValue);
+    public Multi<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
+        return Uni.createFrom().item(() -> getPractitionerByIdentifier(identifierValue))
+                .runSubscriptionOn(Infrastructure.getDefaultExecutor())
+                .onItem().transformToMulti(practitioner -> Multi.createFrom().<Patient>emitter(emitter -> {
+                    Bundle bundle = client.search()
+                            .forResource(Patient.class)
+                            .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                            .where(Patient.NAME.contains().value(name))
+                            .where(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart()))
+                            .sort().ascending(Patient.NAME)
+                            .returnBundle(Bundle.class)
+                            .execute();
 
-        Bundle bundle = client.search()
-                .forResource(Patient.class)
-                .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
-                .where(Patient.NAME.contains().value(name))
-                .where(Patient.GENERAL_PRACTITIONER.hasId("Practitioner/" + practitioner.getIdElement().getIdPart()))
-                .sort().ascending(Patient.NAME)
-                .returnBundle(Bundle.class)
-                .execute();
+                    processBundle(bundle, emitter);
 
-        List<Patient> patients = new ArrayList<>(bundle.getEntry().stream()
-                .map(p -> (Patient) p.getResource())
-                .toList());
+                    emitter.complete();
+                }))
+                .emitOn(Infrastructure.getDefaultExecutor());
+    }
+
+    private void processBundle(Bundle bundle, MultiEmitter<? super Patient> emitter) {
+        bundle.getEntry().stream()
+                .map(entry -> (Patient) entry.getResource())
+                .forEach(emitter::emit);
 
         while (bundle.getLink(Bundle.LINK_NEXT) != null) {
             bundle = client.loadPage().next(bundle).execute();
-            patients.addAll(bundle.getEntry().stream()
-                    .map(p -> (Patient) p.getResource())
-                    .toList());
+            bundle.getEntry().stream()
+                    .map(entry -> (Patient) entry.getResource())
+                    .forEach(emitter::emit);
         }
-        return patients;
     }
 
     public Practitioner getPractitionerByIdentifier(String identifierValue) {

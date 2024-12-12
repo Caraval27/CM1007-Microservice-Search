@@ -34,19 +34,12 @@ public class Controller {
 
     @GET
     @Path("practitioner-patients-by-name")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
-        try {
-            List<Patient> patients = hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner);
-            List<PatientData> patientsData = new ArrayList<>();
-            for (Patient patient : patients) {
-                patientsData.add(hapiService.getPatientData(patient));
-            }
-            return Response.ok(patientsData).build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Response.status(Response.Status.BAD_REQUEST).build();
-        }
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<PatientData> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
+        return hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner)
+                .onItem().transform(patient -> hapiService.getPatientData(patient))
+                .onFailure().recoverWithMulti(() -> Multi.createFrom().item(() -> new PatientData("Error fetching practitioner-patients.", "", null, "", "", "", "", "")))
+                .onFailure().recoverWithCompletion();
     }
 
     @GET
