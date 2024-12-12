@@ -3,7 +3,6 @@ package journal.Core;
 import ca.uhn.fhir.context.FhirContext;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.smallrye.mutiny.subscription.MultiEmitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -13,7 +12,6 @@ import org.hl7.fhir.r4.model.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @ApplicationScoped
 public class HapiService {
@@ -30,44 +28,25 @@ public class HapiService {
         this.client = context.newRestfulGenericClient(HAPI_SERVER_URL);
     }
 
-    public Multi<Patient> getPatientsByName(String name) {
+    public Multi<List<Patient>> getPatientsByName(String name) {
         return Multi.createFrom().emitter(emitter -> {
-            fetchBundleNonBlocking(name, null, emitter);
-        });
+                    Bundle bundle = client.search()
+                            .forResource(Patient.class)
+                            .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
+                            .where(Patient.NAME.contains().value(name))
+                            .sort().ascending(Patient.NAME)
+                            .returnBundle(Bundle.class)
+                            .execute();
+
+                    processPatientBundle(bundle, emitter);
+
+                    emitter.complete();
+                });
     }
 
-    private void fetchBundleNonBlocking(String name, Bundle currentBundle, MultiEmitter<? super Patient> emitter) {
-        Uni.createFrom().item(() -> {
-            if (currentBundle == null) {
-                return client.search()
-                        .forResource(Patient.class)
-                        .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
-                        .where(Patient.NAME.contains().value(name))
-                        .sort().ascending(Patient.NAME)
-                        .returnBundle(Bundle.class)
-                        .execute();
-            } else if (currentBundle.getLink(Bundle.LINK_NEXT) != null) {
-                return client.loadPage().next(currentBundle).execute();
-            }
-            return null;
-        })
-            .subscribe().with(bundle -> {
-            if (bundle != null) {
-                bundle.getEntry().stream()
-                        .map(entry -> (Patient) entry.getResource())
-                        .forEach(emitter::emit);
-
-                fetchBundleNonBlocking(name, bundle, emitter);
-            } else {
-                emitter.complete();
-            }
-        }, emitter::fail);
-    }
-
-    public Multi<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
+    public Multi<List<Patient>> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
         return Uni.createFrom().item(() -> getPractitionerByIdentifier(identifierValue))
-                .runSubscriptionOn(Infrastructure.getDefaultExecutor())
-                .onItem().transformToMulti(practitioner -> Multi.createFrom().<Patient>emitter(emitter -> {
+                .onItem().transformToMulti(practitioner -> Multi.createFrom().emitter(emitter -> {
                     Bundle bundle = client.search()
                             .forResource(Patient.class)
                             .where(Patient.IDENTIFIER.hasSystemWithAnyCode(PATIENT_SYSTEM))
@@ -77,23 +56,24 @@ public class HapiService {
                             .returnBundle(Bundle.class)
                             .execute();
 
-                    processBundle(bundle, emitter);
+                    processPatientBundle(bundle, emitter);
 
                     emitter.complete();
-                }))
-                .emitOn(Infrastructure.getDefaultExecutor());
+                }));
     }
 
-    private void processBundle(Bundle bundle, MultiEmitter<? super Patient> emitter) {
-        bundle.getEntry().stream()
+    private void processPatientBundle(Bundle bundle, MultiEmitter<? super List<Patient>> emitter) {
+        List<Patient> patients = bundle.getEntry().stream()
                 .map(entry -> (Patient) entry.getResource())
-                .forEach(emitter::emit);
+                .toList();
+        emitter.emit(patients);
 
         while (bundle.getLink(Bundle.LINK_NEXT) != null) {
             bundle = client.loadPage().next(bundle).execute();
-            bundle.getEntry().stream()
+            patients = bundle.getEntry().stream()
                     .map(entry -> (Patient) entry.getResource())
-                    .forEach(emitter::emit);
+                    .toList();
+            emitter.emit(patients);
         }
     }
 

@@ -1,5 +1,6 @@
 package journal.Core;
 
+import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -22,24 +23,24 @@ public class Controller {
     @Inject
     HapiService hapiService;
 
+    @Blocking
     @GET
     @Path("patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<PatientData> getPatientsByName(@QueryParam("name") String name) {
+    public Multi<List<PatientData>> getPatientsByName(@QueryParam("name") String name) {
         return hapiService.getPatientsByName(name)
-                .onItem().transform(hapiService::getPatientData)
-                .onFailure()
-                .recoverWithItem(() -> new PatientData("Error occurred while fetching patients", "", null, "", "", "", "", ""));
+                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList());
+                //.onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
+    @Blocking
     @GET
     @Path("practitioner-patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<PatientData> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
+    public Multi<List<PatientData>> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
         return hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner)
-                .onItem().transform(patient -> hapiService.getPatientData(patient))
-                .onFailure().recoverWithMulti(() -> Multi.createFrom().item(() -> new PatientData("Error fetching practitioner-patients.", "", null, "", "", "", "", "")))
-                .onFailure().recoverWithCompletion();
+                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                        .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
     @GET
