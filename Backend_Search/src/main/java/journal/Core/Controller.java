@@ -23,74 +23,53 @@ public class Controller {
     @Inject
     HapiService hapiService;
 
-    @Blocking
     @GET
+    @Blocking
     @Path("patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<List<PatientData>> getPatientsByName(@QueryParam("name") String name) {
         return hapiService.getPatientsByName(name)
-                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList());
-                //.onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
+                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
-    @Blocking
     @GET
+    @Blocking
     @Path("practitioner-patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<List<PatientData>> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
         return hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner)
                 .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
-                        .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
+                .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
     @GET
-    @Path("practitioners-by-name")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getPractitionersByName(@QueryParam("name") String name) {
-        try {
-            List<Practitioner> practitioners = hapiService.getPractitionersByName(name);
-            List<PractitionerData> practitionersData = new ArrayList<>();
-            for (Practitioner practitioner : practitioners) {
-                practitionersData.add(hapiService.getPractitionerData(practitioner));
-            }
-            return Response.ok(practitionersData).build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Response.status(Response.Status.BAD_REQUEST).build();
-        }
-    }
-
-    @GET
+    @Blocking
     @Path("patients-by-condition")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getPatientsByCondition(@QueryParam("condition") String condition) {
-        try {
-            List<Patient> patients = hapiService.getPatientsByConditionCode(condition);
-            List<PatientData> patientsData = new ArrayList<>();
-            for (Patient patient : patients) {
-                patientsData.add(hapiService.getPatientData(patient));
-            }
-            return Response.ok(patientsData).build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Response.status(Response.Status.BAD_REQUEST).build();
-        }
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<List<PatientData>> getPatientsByCondition(@QueryParam("condition") String condition) {
+        return hapiService.getPatientsByConditionCode(condition)
+                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
     @GET
+    @Blocking
     @Path("practitioner-patients-by-condition")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getPractitionerPatientsByCondition(@QueryParam("condition") String condition, @QueryParam("practitioner") String practitioner) {
-        try {
-            List<Patient> patients = hapiService.getPatientsByConditionCodeAndPractitionerIdentifier(condition, practitioner);
-            List<PatientData> patientsData = new ArrayList<>();
-            for (Patient patient : patients) {
-                patientsData.add(hapiService.getPatientData(patient));
-            }
-            return Response.ok(patientsData).build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Response.status(Response.Status.BAD_REQUEST).build();
-        }
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<List<PatientData>> getPractitionerPatientsByCondition(@QueryParam("condition") String condition, @QueryParam("practitioner") String practitioner) {
+        return hapiService.getPatientsByConditionCodeAndPractitionerIdentifier(condition, practitioner)
+                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
+    }
+
+    @GET
+    @Blocking
+    @Path("practitioners-by-name")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<List<PractitionerData>> getPractitionersByName(@QueryParam("name") String name) {
+        return hapiService.getPractitionersByName(name)
+                .onItem().transform(practitioners -> practitioners.stream().map(practitioner -> hapiService.getPractitionerData(practitioner)).toList())
+                .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 }
