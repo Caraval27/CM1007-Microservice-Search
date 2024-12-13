@@ -8,14 +8,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 import journal.Core.Model.PatientData;
 import journal.Core.Model.PractitionerData;
-import org.hl7.fhir.r4.model.Patient;
-import org.hl7.fhir.r4.model.Practitioner;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Path("/")
 public class Controller {
