@@ -27,7 +27,7 @@ public class HapiService {
         this.client = context.newRestfulGenericClient(HAPI_SERVER_URL);
     }
 
-    public Multi<List<Patient>> getPatientsByName(String name) {
+    public Multi<Patient> getPatientsByName(String name) {
         return Multi.createFrom().emitter(emitter -> {
             Bundle bundle = client.search()
                     .forResource(Patient.class)
@@ -37,12 +37,13 @@ public class HapiService {
                     .returnBundle(Bundle.class)
                     .execute();
 
-            processPatientBundle(bundle, emitter);
+            processPatients(bundle, emitter);
+
             emitter.complete();
         });
     }
 
-    public Multi<List<Patient>> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
+    public Multi<Patient> getPatientsByNameAndPractitionerIdentifier(String name, String identifierValue) {
         return Uni.createFrom().item(() -> getPractitionerByIdentifier(identifierValue))
             .onItem().transformToMulti(practitioner -> Multi.createFrom().emitter(emitter -> {
                 Bundle bundle = client.search()
@@ -54,13 +55,13 @@ public class HapiService {
                         .returnBundle(Bundle.class)
                         .execute();
 
-                processPatientBundle(bundle, emitter);
+                processPatients(bundle, emitter);
 
                 emitter.complete();
             }));
     }
 
-    public Multi<List<Patient>> getPatientsByConditionCode(String code) {
+    public Multi<Patient> getPatientsByConditionCode(String code) {
         return Multi.createFrom().emitter(emitter -> {
             Bundle bundle = client.search()
                     .forResource(Condition.class)
@@ -69,12 +70,13 @@ public class HapiService {
                     .returnBundle(Bundle.class)
                     .execute();
 
-            processPatientBundle(bundle, emitter);
+            processPatients(bundle, emitter);
+
             emitter.complete();
         });
     }
 
-    public Multi<List<Patient>> getPatientsByConditionCodeAndPractitionerIdentifier(String code, String identifierValue) {
+    public Multi<Patient> getPatientsByConditionCodeAndPractitionerIdentifier(String code, String identifierValue) {
         return Uni.createFrom().item(() -> getPractitionerByIdentifier(identifierValue))
             .onItem().transformToMulti(practitioner -> Multi.createFrom().emitter(emitter -> {
                 Bundle bundle = client.search()
@@ -85,24 +87,24 @@ public class HapiService {
                         .returnBundle(Bundle.class)
                         .execute();
 
-                processPatientBundle(bundle, emitter);
+                processPatients(bundle, emitter);
+
                 emitter.complete();
             }));
     }
 
-    private void processPatientBundle(Bundle bundle, MultiEmitter<? super List<Patient>> emitter) {
-        List<Patient> patients = bundle.getEntry().stream()
+    private void processPatients(Bundle bundle, MultiEmitter<? super Patient> emitter) {
+        bundle.getEntry().stream()
+                .filter(entry -> entry.getResource() instanceof Patient)
                 .map(entry -> (Patient) entry.getResource())
-                .toList();
-        emitter.emit(patients);
+                .forEach(emitter::emit);
 
         while (bundle.getLink(Bundle.LINK_NEXT) != null) {
             bundle = client.loadPage().next(bundle).execute();
-            patients = bundle.getEntry().stream()
+            bundle.getEntry().stream()
                     .filter(entry -> entry.getResource() instanceof Patient)
                     .map(entry -> (Patient) entry.getResource())
-                    .toList();
-            emitter.emit(patients);
+                    .forEach(emitter::emit);
         }
     }
 
@@ -120,7 +122,7 @@ public class HapiService {
         return (Practitioner) entries.get(0).getResource();
     }
 
-    public Multi<List<Practitioner>>getPractitionersByName(String name) {
+    public Multi<Practitioner> getPractitionersByName(String name) {
         return Multi.createFrom().emitter(emitter -> {
             Bundle bundle = client.search()
                     .forResource(Practitioner.class)
@@ -130,19 +132,23 @@ public class HapiService {
                     .returnBundle(Bundle.class)
                     .execute();
 
-            List<Practitioner> practitioners = bundle.getEntry().stream()
-                    .map(p -> (Practitioner) p.getResource())
-                    .toList();
-            emitter.emit(practitioners);
+            processPractitioners(bundle, emitter);
 
-            while (bundle.getLink(Bundle.LINK_NEXT) != null) {
-                bundle = client.loadPage().next(bundle).execute();
-                practitioners = bundle.getEntry().stream()
-                        .map(p -> (Practitioner) p.getResource())
-                        .toList();
-                emitter.emit(practitioners);
-            }
+            emitter.complete();
         });
+    }
+
+    private void processPractitioners(Bundle bundle, MultiEmitter<? super Practitioner> emitter) {
+        bundle.getEntry().stream()
+                .map(entry -> (Practitioner) entry.getResource())
+                .forEach(emitter::emit);
+
+        while (bundle.getLink(Bundle.LINK_NEXT) != null) {
+            bundle = client.loadPage().next(bundle).execute();
+            bundle.getEntry().stream()
+                    .map(entry -> (Practitioner) entry.getResource())
+                    .forEach(emitter::emit);
+        }
     }
 
     public PatientData getPatientData(Patient patient) {

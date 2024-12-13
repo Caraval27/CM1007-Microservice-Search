@@ -27,9 +27,9 @@ public class Controller {
     @Blocking
     @Path("patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<List<PatientData>> getPatientsByName(@QueryParam("name") String name) {
+    public Multi<PatientData> getPatientsByName(@QueryParam("name") String name) {
         return hapiService.getPatientsByName(name)
-                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onItem().transform(patient -> hapiService.getPatientData(patient))
                 .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
@@ -37,9 +37,9 @@ public class Controller {
     @Blocking
     @Path("practitioner-patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<List<PatientData>> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
+    public Multi<PatientData> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
         return hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner)
-                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onItem().transform(patient -> hapiService.getPatientData(patient))
                 .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
@@ -47,9 +47,9 @@ public class Controller {
     @Blocking
     @Path("patients-by-condition")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<List<PatientData>> getPatientsByCondition(@QueryParam("condition") String condition) {
+    public Multi<PatientData> getPatientsByCondition(@QueryParam("condition") String condition) {
         return hapiService.getPatientsByConditionCode(condition)
-                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onItem().transform(patient -> hapiService.getPatientData(patient))
                 .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
@@ -57,9 +57,9 @@ public class Controller {
     @Blocking
     @Path("practitioner-patients-by-condition")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<List<PatientData>> getPractitionerPatientsByCondition(@QueryParam("condition") String condition, @QueryParam("practitioner") String practitioner) {
+    public Multi<PatientData> getPractitionerPatientsByCondition(@QueryParam("condition") String condition, @QueryParam("practitioner") String practitioner) {
         return hapiService.getPatientsByConditionCodeAndPractitionerIdentifier(condition, practitioner)
-                .onItem().transform(patients -> patients.stream().map(patient -> hapiService.getPatientData(patient)).toList())
+                .onItem().transform(patient -> hapiService.getPatientData(patient))
                 .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 
@@ -67,9 +67,9 @@ public class Controller {
     @Blocking
     @Path("practitioners-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<List<PractitionerData>> getPractitionersByName(@QueryParam("name") String name) {
+    public Multi<PractitionerData> getPractitionersByName(@QueryParam("name") String name) {
         return hapiService.getPractitionersByName(name)
-                .onItem().transform(practitioners -> practitioners.stream().map(practitioner -> hapiService.getPractitionerData(practitioner)).toList())
+                .onItem().transform(practitioner -> hapiService.getPractitionerData(practitioner))
                 .onFailure().recoverWithMulti(failure -> Multi.createFrom().empty());
     }
 }
