@@ -16,10 +16,11 @@ import java.util.List;
 public class HapiService {
     private FhirContext context;
     private IGenericClient client;
+
+    private static final String HAPI_SERVER_URL = "https://hapi-fhir.app.cloud.cbh.kth.se/fhir";
     private static final String PATIENT_SYSTEM = "http://electronichealth.se/identifier/personnummer";
     private static final String PRACTITIONER_SYSTEM = "http://terminology.hl7.org/CodeSystem/v2-0203";
     private static final String PRACTITIONER_ROLE_SYSTEM = "http://terminology.hl7.org/CodeSystem/practitioner-role";
-    private static final String HAPI_SERVER_URL = "https://hapi-fhir.app.cloud.cbh.kth.se/fhir";
     private static final String CONDITION_SYSTEM = "http://snomed.info/sct";
 
     public HapiService() {
