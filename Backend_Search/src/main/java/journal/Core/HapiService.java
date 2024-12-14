@@ -243,6 +243,32 @@ public class HapiService {
 
         String fullName = practitioner.getName().get(0).getNameAsSingleString();
 
-        return new PractitionerData(hsaId, fullName, email, phone);
+        String role = "";
+        List<PractitionerRole> practitionerRoles = getPractitionerRoleByPractitionerId(practitioner.getIdPart());
+        if (!practitionerRoles.isEmpty()) {
+            PractitionerRole practitionerRole = practitionerRoles.get(0);
+            if (practitionerRole.hasCode() && !practitionerRole.getCode().isEmpty()) {
+                CodeableConcept codeableConcept = practitionerRole.getCodeFirstRep();
+                if (codeableConcept.hasCoding()) {
+                    for (Coding coding : codeableConcept.getCoding()) {
+                        if (coding.getSystem().equals(PRACTITIONER_ROLE_SYSTEM)) {
+                            role = coding.getDisplay();
+                        }
+                    }
+                }
+            }
+        }
+
+        return new PractitionerData(hsaId, fullName, role, email, phone);
+    }
+
+    private List<PractitionerRole> getPractitionerRoleByPractitionerId(String id) {
+        Bundle bundle = client.search()
+                .forResource(PractitionerRole.class)
+                .where(PractitionerRole.PRACTITIONER.hasId("Practitioner/" + id))
+                .returnBundle(Bundle.class)
+                .execute();
+        return bundle.getEntry().stream().map(pR -> (PractitionerRole) pR.getResource())
+                .toList();
     }
 }

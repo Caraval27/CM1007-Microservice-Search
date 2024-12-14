@@ -3,12 +3,14 @@ package journal.Core.Model;
 public class PractitionerData {
     private String id;
     private String fullName;
+    private String role;
     private String email;
     private String phone;
 
-    public PractitionerData(String id, String fullName, String email, String phone) {
+    public PractitionerData(String id, String fullName, String role, String email, String phone) {
         this.id = id;
         this.fullName = fullName;
+        this.role = role;
         this.email = email;
         this.phone = phone;
     }
@@ -27,6 +29,14 @@ public class PractitionerData {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public String getEmail() {
@@ -50,6 +60,7 @@ public class PractitionerData {
         return "PractitionerData{" +
                 "id='" + id + '\'' +
                 ", fullName='" + fullName + '\'' +
+                ", role='" + role + '\'' +
                 ", email='" + email + '\'' +
                 ", phone='" + phone + '\'' +
                 '}';
