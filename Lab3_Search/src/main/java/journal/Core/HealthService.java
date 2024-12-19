@@ -13,7 +13,7 @@ import org.hl7.fhir.r4.model.*;
 import java.util.List;
 
 @ApplicationScoped
-public class HapiService {
+public class HealthService {
     private FhirContext context;
     private IGenericClient client;
 
@@ -23,7 +23,7 @@ public class HapiService {
     private static final String PRACTITIONER_ROLE_SYSTEM = "http://terminology.hl7.org/CodeSystem/practitioner-role";
     private static final String CONDITION_SYSTEM = "http://snomed.info/sct";
 
-    public HapiService() {
+    public HealthService() {
         this.context = FhirContext.forR4();
         this.client = context.newRestfulGenericClient(HAPI_SERVER_URL);
     }

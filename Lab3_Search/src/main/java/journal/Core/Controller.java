@@ -3,7 +3,6 @@ package journal.Core;
 import io.quarkus.security.Authenticated;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
-import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -18,15 +17,15 @@ import journal.Core.Model.PractitionerData;
 public class Controller {
 
     @Inject
-    HapiService hapiService;
+    HealthService healthService;
 
     @GET
     @Blocking
     @Path("patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<PatientData> getPatientsByName(@QueryParam("name") String name) {
-        return hapiService.getPatientsByName(name)
-                .onItem().transform(patient -> hapiService.getPatientData(patient));
+        return healthService.getPatientsByName(name)
+                .onItem().transform(patient -> healthService.getPatientData(patient));
     }
 
     @GET
@@ -34,8 +33,8 @@ public class Controller {
     @Path("practitioner-patients-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<PatientData> getPractitionerPatientsByName(@QueryParam("name") String name, @QueryParam("practitioner") String practitioner) {
-        return hapiService.getPatientsByNameAndPractitionerIdentifier(name, practitioner)
-                .onItem().transform(patient -> hapiService.getPatientData(patient));
+        return healthService.getPatientsByNameAndPractitionerIdentifier(name, practitioner)
+                .onItem().transform(patient -> healthService.getPatientData(patient));
     }
 
     @GET
@@ -43,8 +42,8 @@ public class Controller {
     @Path("patients-by-condition")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<PatientData> getPatientsByCondition(@QueryParam("condition") String condition) {
-        return hapiService.getPatientsByConditionCode(condition)
-                .onItem().transform(patient -> hapiService.getPatientData(patient));
+        return healthService.getPatientsByConditionCode(condition)
+                .onItem().transform(patient -> healthService.getPatientData(patient));
     }
 
     @GET
@@ -52,8 +51,8 @@ public class Controller {
     @Path("practitioner-patients-by-condition")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<PatientData> getPractitionerPatientsByCondition(@QueryParam("condition") String condition, @QueryParam("practitioner") String practitioner) {
-        return hapiService.getPatientsByConditionCodeAndPractitionerIdentifier(condition, practitioner)
-                .onItem().transform(patient -> hapiService.getPatientData(patient));
+        return healthService.getPatientsByConditionCodeAndPractitionerIdentifier(condition, practitioner)
+                .onItem().transform(patient -> healthService.getPatientData(patient));
     }
 
     @GET
@@ -61,7 +60,7 @@ public class Controller {
     @Path("practitioners-by-name")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public Multi<PractitionerData> getPractitionersByName(@QueryParam("name") String name) {
-        return hapiService.getPractitionersByName(name)
-                .onItem().transform(practitioner -> hapiService.getPractitionerData(practitioner));
+        return healthService.getPractitionersByName(name)
+                .onItem().transform(practitioner -> healthService.getPractitionerData(practitioner));
     }
 }
