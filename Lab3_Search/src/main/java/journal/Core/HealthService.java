@@ -109,7 +109,7 @@ public class HealthService {
         }
     }
 
-    private Practitioner getPractitionerByIdentifier(String identifierValue) {
+    public Practitioner getPractitionerByIdentifier(String identifierValue) {
         Bundle bundle = client
                 .search()
                 .forResource(Practitioner.class)
@@ -263,7 +263,7 @@ public class HealthService {
         return new PractitionerData(hsaId, fullName, role, email, phone);
     }
 
-    private List<PractitionerRole> getPractitionerRoleByPractitionerId(String id) {
+    public List<PractitionerRole> getPractitionerRoleByPractitionerId(String id) {
         Bundle bundle = client.search()
                 .forResource(PractitionerRole.class)
                 .where(PractitionerRole.PRACTITIONER.hasId("Practitioner/" + id))
