@@ -1,7 +1,9 @@
 package journal.Core;
 
+import io.quarkus.security.Authenticated;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -11,6 +13,7 @@ import jakarta.ws.rs.core.MediaType;
 import journal.Core.Model.PatientData;
 import journal.Core.Model.PractitionerData;
 
+@Authenticated
 @Path("/")
 public class Controller {
 
