@@ -1,19 +1,10 @@
-FROM maven:3.8.4-openjdk-17 AS build
-WORKDIR /build_journal_app
-COPY Lab3_Search/pom.xml .
-
-RUN mvn dependency:go-offline
-
-COPY Lab3_Search/src ./src
-
-RUN mvn clean test
-
-RUN mvn clean package
-
 FROM openjdk:17-jdk-alpine
 WORKDIR /journal_app
 EXPOSE 8083
 
-COPY --from=build /build_journal_app/target/quarkus-app /journal_app/
+ARG JAR_DIR=Lab3_Search/target/quarkus-app
+ARG JAR_NAME=quarkus-run.jar
+
+COPY ${JAR_DIR}/${JAR_NAME} /journal_app/
 
 CMD ["java", "-jar", "/journal_app/quarkus-run.jar"]
