@@ -25,7 +25,7 @@ jobs:
                 restore-keys: |
                   maven-
     
-            - name: Build project and run tests
+            - name: Run tests and build project
               run: |
                 cd Lab3_Search
                 mvn clean test
