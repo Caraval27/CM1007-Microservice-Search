@@ -8,5 +8,5 @@ The **Search Repository** provides attribute-based search functionality for the 
 
 ## Technologies
 - **Backend**: Quarkus Reactive.
-- **Database**: HAPI FHIR.
 - **Testing**: JUnit.
+- **Database**: HAPI FHIR.
